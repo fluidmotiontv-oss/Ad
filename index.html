@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Super Puff Grinder - Sovereign Edition</title>
+    <style>
+        body { margin: 0; background: #020205; overflow: hidden; font-family: monospace; color: #00ffcc; }
+        canvas { width: 100vw; height: 100vh; display: block; position: absolute; top: 0; left: 0; z-index: 1; }
+        .ui-layer { position: relative; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; pointer-events: none; }
+        .panel { 
+            background: rgba(5, 15, 30, 0.75); 
+            border: 1px solid rgba(0, 255, 204, 0.5); 
+            padding: 32px; 
+            border-radius: 12px; 
+            box-shadow: 0 0 40px rgba(0,255,204,0.25), inset 0 0 15px rgba(0,255,204,0.1); 
+            pointer-events: auto; 
+            text-align: center; 
+            backdrop-filter: blur(10px); 
+            max-width: 400px;
+            width: 90%;
+        }
+        h2 { margin-top: 0; letter-spacing: 3px; font-size: 22px; text-shadow: 0 0 10px rgba(0,255,204,0.5); }
+        p { color: #88ffcc; font-size: 13px; margin-bottom: 20px; }
+        button { 
+            background: linear-gradient(135deg, #00ffcc, #0099ff); 
+            color: #000; 
+            border: none; 
+            padding: 16px 32px; 
+            font-weight: bold; 
+            font-size: 16px; 
+            cursor: pointer; 
+            border-radius: 6px; 
+            text-transform: uppercase; 
+            letter-spacing: 1px;
+            box-shadow: 0 0 20px rgba(0,255,204,0.4);
+            transition: all 0.2s ease;
+        }
+        button:hover { filter: brightness(1.2); box-shadow: 0 0 30px #00ffcc; transform: scale(1.02); }
+        #status { margin-top: 20px; font-size: 13px; color: #ff00ff; font-weight: bold; text-shadow: 0 0 8px rgba(255,0,255,0.4); }
+    </style>
+</head>
+<body>
+    <canvas id="glCanvas"></canvas>
+    <div class="ui-layer">
+        <div class="panel">
+            <h2>SUPER PUFF GRINDER</h2>
+            <p>Pee Dub Terminal Sovereign Node</p>
+            <button id="grinderBtn">Start the Grinder</button>
+            <div id="status">Status: Idle</div>
+        </div>
+    </div>
+    <script>
+        const canvas = document.getElementById('glCanvas');
+        const gl = canvas.getContext('webgl');
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; gl.viewport(0, 0, canvas.width, canvas.height); }
+        window.addEventListener('resize', resize); resize();
+        
+        const vs = 'attribute vec2 p; void main() { gl_Position = vec4(p, 0.0, 1.0); }';
+        const fs = `
+            precision mediump float;
+            uniform float t;
+            uniform int a;
+            void main() {
+                vec2 uv = gl_FragCoord.xy / vec2(800.0, 600.0);
+                float speed = a == 1 ? 6.0 : 1.5;
+                float wave = sin(uv.x * 10.0 + t * speed) * cos(uv.y * 10.0 - t * speed);
+                vec3 col = vec3(0.05, 0.15 + wave * 0.1, 0.3 + wave * 0.2);
+                if (a == 1) {
+                    col = vec3(wave * 0.5, 0.8 + wave * 0.2, 1.0);
+                }
+                gl_FragColor = vec4(col, 1.0);
+            }
+        `;
+        
+        function mkShader(gl, type, src) {
+            const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s;
+        }
+        const prog = gl.createProgram();
+        gl.attachShader(prog, mkShader(gl, gl.VERTEX_SHADER, vs));
+        gl.attachShader(prog, mkShader(gl, gl.FRAGMENT_SHADER, fs));
+        gl.linkProgram(prog); gl.useProgram(prog);
+        
+        const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,1,1,1,-1,-1,-1,-1,1,1,1,-1]), gl.STATIC_DRAW);
+        const posLoc = gl.getAttribLocation(prog, 'p');
+        gl.enableVertexAttribArray(posLoc); gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+        
+        const tLoc = gl.getUniformLocation(prog, 't');
+        const aLoc = gl.getUniformLocation(prog, 'a');
+        let active = 0, start = Date.now();
+        
+        document.getElementById('grinderBtn').onclick = () => {
+            active = active === 1 ? 0 : 1;
+            document.getElementById('status').innerText = active === 1 ? 'Status: Grinder Active' : 'Status: Idle';
+            document.getElementById('grinderBtn').innerText = active === 1 ? 'Stop Grinder' : 'Start the Grinder';
+        };
+        
+        function render() {
+            gl.uniform1f(tLoc, (Date.now() - start) * 0.001);
+            gl.uniform1i(aLoc, active);
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+            requestAnimationFrame(render);
+        }
+        requestAnimationFrame(render);
+    </script>
+</body>
+</html>
